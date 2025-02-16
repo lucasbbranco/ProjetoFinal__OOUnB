@@ -18,6 +18,10 @@ O projeto foi pensado em facilitar anotações de agenda em uma página web de f
 - pip install bottle
 - pip install bottle-websocket
 
+3. Rode o app.py
+4. Abrir o [localhost](http://localhost:8080) em seu navegador.
+5. Usar sua agenda.
+
 ## 🔨 Ferramentas usadas
 
 - [Python](https://www.python.org)
