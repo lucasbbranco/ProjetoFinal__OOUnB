@@ -15,8 +15,8 @@ O projeto foi pensado em facilitar anotações de agenda em uma página web de f
 1. Clone o repositório.
 2. Instale as dependências necessárias:
 
-   pip install bottle
-   pip install bottle-websocket
+- pip install bottle
+- pip install bottle-websocket
 
 ## 🔨 Ferramentas usadas
 
