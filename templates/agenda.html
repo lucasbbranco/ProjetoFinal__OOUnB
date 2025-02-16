@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Agenda de {{ user }}</h2>
+    <form action="/add_event" method="post" accept-charset="utf-8">
+        <label for="title">Título:</label>
+        <input type="text" id="title" name="title" required>
+        <label for="description">Descrição:</label>
+        <textarea id="description" name="description" required></textarea>
+        <label for="date">Data:</label>
+        <input type="date" id="date" name="date" required>
+        <button type="submit">Adicionar Evento</button>
+    </form>
+    <h3>Eventos</h3>
+    <ul>
+        {% if events %}
+            {% for event in events %}
+                <li>
+                    <strong>{{ event.get('title', 'Sem título') }}</strong> - {{ event.get('date', 'Sem data') }}<br>
+                    {{ event.get('description', 'Sem descrição') }}
+                </li>
+            {% endfor %}
+        {% else %}
+            <li>Nenhum evento encontrado.</li>
+        {% endif %}
+    </ul>
+{% endblock %}
