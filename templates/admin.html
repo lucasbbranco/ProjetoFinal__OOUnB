@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Painel do Administrador</h2>
+    
+    <h3>Adicionar Evento</h3>
+    <form action="/admin/add_event" method="post">
+        <label for="title">Título:</label>
+        <input type="text" id="title" name="title" required>
+        
+        <label for="description">Descrição:</label>
+        <textarea id="description" name="description" required></textarea>
+        
+        <label for="date">Data:</label>
+        <input type="date" id="date" name="date" required>
+        
+        <label for="user">Usuário:</label>
+        <select id="user" name="user" required>
+            {% for user in users %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+            {% endfor %}
+        </select>
+        
+        <button type="submit">Adicionar Evento</button>
+    </form>
+    
+    <h3>Eventos</h3>
+    <ul>
+        {% for event in events %}
+            <li>
+                <strong>{{ event.title }}</strong> - {{ event.date }}<br>
+                {{ event.description }} (Usuário: {{ event.user }})
+                <form action="/admin/remove_event" method="post" style="display:inline;">
+                    <input type="hidden" name="event_index" value="{{ loop.index0 }}">
+                    <button type="submit">Remover</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

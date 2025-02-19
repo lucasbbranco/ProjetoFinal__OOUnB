@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from bottle import Bottle, route, run, request, response, template, static_file, redirect, TEMPLATE_PATH, abort
 from bottle import get, post, put, delete
 from bottle_websocket import GeventWebSocketServer
@@ -17,10 +18,12 @@ DATABASE = 'database.json'
 # Carregar dados do banco de dados
 def load_db():
     try:
-        with open(DATABASE, 'r', encoding='utf-8') as f:  # Lê o JSON em UTF-8
+        with open(DATABASE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Retorna uma estrutura vazia se o banco de dados estiver corrompido
         return {"users": [], "events": []}
+
 
 # Salvar dados no banco de dados
 def save_db(data):
@@ -81,6 +84,7 @@ def login():
     for user_data in db['users']:
         if user_data['username'] == username and user_data['password'] == password:
             response.set_cookie("user", username)
+            response.set_cookie("role", user_data['role'])  # Define o cookie 'role'
             return redirect('/agenda')
     return "Login falhou. Verifique suas credenciais."
 
@@ -94,12 +98,17 @@ def logout():
 @app.route('/agenda')
 def agenda():
     user = request.get_cookie("user")
+    role = request.get_cookie("role")  # Recupera o papel do usuário
+    
     if not user:
         return redirect('/')
     
+    if role == 'admin':
+        return redirect('/admin')  # Redireciona administradores para a página de administração
+    
     db = load_db()
     user_events = [event for event in db['events'] if event['user'] == user]
-    
+
     # Renderiza o template usando o Jinja2
     return jinja2_template('agenda.html', user=user, events=user_events)
 
@@ -157,7 +166,6 @@ def register():
     username = request.forms.get('username')
     password = request.forms.get('password')
     
-    
     # Carrega o banco de dados
     db = load_db()
     
@@ -166,10 +174,11 @@ def register():
         if user_data['username'] == username:
             return "Usuário já existe. Escolha outro nome de usuário."
     
-    # Adiciona o novo usuário
+    # Adiciona o novo usuário com a função padrão "user"
     new_user = {
         "username": username,
-        "password": password
+        "password": password,
+        "role": "user"  # Define a função padrão como "user"
     }
     db['users'].append(new_user)
     
@@ -179,7 +188,96 @@ def register():
     print(f"Novo usuário registrado: {new_user}")
     
     # Redireciona para a página de login
-    return redirect('/')
+    return redirect('/')   
+
+ 
+@app.route('/admin')
+def admin():
+    try:
+        user = request.get_cookie("user")  # Captura o nome do usuário logado
+        role = request.get_cookie("role")  # Captura o papel do usuário logado
+
+        if not user or role != 'admin':  # Verifica se o papel é admin
+            return "Acesso negado. Você não tem permissão para acessar esta página."
+
+        db = load_db()  # Carrega os dados do banco de dados
+
+        # Garante que as listas estejam inicializadas e normaliza 'users'
+        users = db.get('users', [])
+        users = [
+            u if isinstance(u, dict) and 'username' in u else {"username": str(u), "role": "user"}
+            for u in users
+        ]
+
+        events = db.get('events', [])
+
+        # Passa 'user' para o template
+        return jinja2_template('admin.html', user=user, users=users, events=events, role=role)
+    except Exception as e:
+        print(f"Erro na rota /admin: {e}")  # Log do erro para diagnóstico
+        return "Erro interno no servidor."
+
+
+
+
+@app.route('/admin/add_event', method='POST')
+def admin_add_event():
+    user = request.get_cookie("user")
+    role = request.get_cookie("role")
+    
+    if not user or role != 'admin':  # Verifica se o usuário é um administrador
+        return "Acesso negado. Você não tem permissão para realizar esta ação."
+    
+    # Captura os dados do formulário
+    title = request.forms.get('title')
+    description = request.forms.get('description')
+    date = request.forms.get('date')
+    target_user = request.forms.get('user')  # Usuário para o qual o evento será adicionado
+    
+    # Carrega o banco de dados
+    db = load_db()
+    
+    # Adiciona o novo evento
+    new_event = {
+        "title": title,
+        "description": description,
+        "date": date,
+        "user": target_user
+    }
+    db['events'].append(new_event)
+    
+    # Salva o banco de dados atualizado
+    save_db(db)
+    
+    print(f"Novo evento adicionado para o usuário {target_user}: {new_event}")
+    
+    # Redireciona de volta para a página de administração
+    return redirect('/admin')
+
+@app.route('/admin/remove_event', method='POST')
+def admin_remove_event():
+    user = request.get_cookie("user")
+    role = request.get_cookie("role")
+    
+    if not user or role != 'admin':  # Verifica se o usuário é um administrador
+        return "Acesso negado. Você não tem permissão para realizar esta ação."
+    
+    # Captura o índice do evento a ser removido
+    event_index = int(request.forms.get('event_index'))
+    
+    # Carrega o banco de dados
+    db = load_db()
+    
+    # Remove o evento
+    if 0 <= event_index < len(db['events']):
+        removed_event = db['events'].pop(event_index)
+        save_db(db)
+        print(f"Evento removido: {removed_event}")
+    else:
+        return "Índice de evento inválido."
+    
+    # Redireciona de volta para a página de administração
+    return redirect('/admin')
 
 # Iniciar servidor
 if __name__ == '__main__':
